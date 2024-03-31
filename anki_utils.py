@@ -1,36 +1,35 @@
-# anki_utils.py
+import sqlite3
+import zipfile
+import io
+from typing import List, Dict, Union
 
-def parse_anki_deck(deck_path):
+def parse_anki_deck(deck_path: str, deck_format: str = 'apkg') -> List[Dict[str, Union[str, int]]]:
     deck_data = []
-    with open(deck_path, 'r', encoding='utf-8') as deck_file:
-        lines = deck_file.readlines()
-        question = ""
-        answer = ""
-        card_id = 1
-        for line in lines:
-            line = line.strip()
-            if line.startswith("Q:"):
-                if question and answer:
-                    deck_data.append({
-                        'id': card_id,
-                        'question': question,
-                                'answer': answer
-                    })
-                    card_id += 1
-                    question = line[2:].strip()
-                    answer = ""
-            elif line.startswith("A:"):
-                answer = line[2:].strip()
-            else:
-                if question:
-                    answer += " " + line
 
-        # Add the last card
-        if question and answer:
-            deck_data.append({
-                'id': card_id,
-                'question': question,
-                'answer': answer
-            })
+    if deck_format == 'apkg':
+        with zipfile.ZipFile(deck_path, 'r') as apkg_file:
+            # Check if the required files are present in the .apkg
+            if 'collection.anki2' not in apkg_file.namelist() or 'lib/libsqlanki.py' not in apkg_file.namelist():
+                raise ValueError("Invalid Anki package file. Required files missing.")
+
+            # Load the SQLite database and extension
+            sql_file = apkg_file.read('collection.anki2')
+            conn = sqlite3.connect(':memory:')
+            conn.enable_load_extension(True)
+            conn.execute("SELECT load_extension(?)", (apkg_file.read('lib/libsqlanki.py'),))
+            conn.executescript(sql_file)
+            cursor = conn.cursor()
+
+            # Query the cards table to get the card data
+            cursor.execute("SELECT id, question, answer FROM cards")
+            rows = cursor.fetchall()
+            for row in rows:
+                card_id, question, answer = row
+                deck_data.append({
+                    'id': card_id,
+                    'question': question,
+                    'answer': answer
+                })
+            conn.close()
 
     return deck_data
