@@ -1,10 +1,15 @@
 import argparse
 from gtts import gTTS
-from anki_utils import parse_anki_deck
+from anki_utils import extract_apkg, parse_apkg
 from pydub import AudioSegment
+import os
 
 def generate_audio(deck_path, output_file):
-    deck_data = parse_anki_deck(deck_path)
+    db_path = "./data"
+    extract_apkg(deck_path, db_path)
+
+    db_path = os.path.join(db_path, 'collection.anki21')
+    deck_data = parse_apkg(db_path)
     combined_text = ""
 
     for card in deck_data:

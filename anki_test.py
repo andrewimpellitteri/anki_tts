@@ -3,11 +3,6 @@ import os
 import zipfile
 from typing import List, Dict
 
-def qa_has_media(text: str) -> bool:
-    if "<img src=" in text:
-        return True
-    return False
-
 def extract_apkg(apkg_path: str, output_dir: str) -> None:
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -28,13 +23,23 @@ def parse_apkg(db_path: str) -> List[Dict[str, str]]:
     parsed_data = []
     for pair in question_answer_pairs:
         fields = pair[0].split('\x1f')  # Anki uses the null character as a field separator
-        question = fields[0].replace("<br>", " ")
-        answer = fields[1].replace("<br>", " ")
-
-        if not qa_has_media(question) and not qa_has_media(answer):
-            parsed_data.append({'question': question, 'answer': answer})
+        question = fields[0]
+        answer = fields[1]
+        parsed_data.append({'question': question, 'answer': answer})
 
     connection.close()
 
     return parsed_data
 
+# Example usage:
+apkg_path = '/Users/andrew/Downloads/Geoguessr_Regionguessing_Metas_V1.apkg'
+output_dir = '/Users/andrew/Documents/dev/anki_tts/data'
+extract_apkg(apkg_path, output_dir)
+
+db_path = os.path.join(output_dir, 'collection.anki21')
+parsed_data = parse_apkg(db_path)
+
+for pair in parsed_data:
+    print(f"Question: {pair['question']}")
+    print(f"Answer: {pair['answer']}")
+    print()
